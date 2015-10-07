@@ -1,7 +1,8 @@
 #!/usr/bin/python
 from numpy import random
-import argparse
 from math import ceil
+import argparse
+from progressbar import ProgressBar
 
 
 class Simulator(object):
@@ -19,7 +20,8 @@ class Simulator(object):
         self.busy_time = 0  # The number of ticks we spent processing something
 
     def simulate(self):
-        for t in range(1, self.max_ticks+1):
+        pbar = ProgressBar()
+        for t in pbar(range(1, self.max_ticks+1)):
             packet = self.generator.next()
             if packet:
                 self.add_to_buf(packet)
@@ -48,15 +50,19 @@ class Simulator(object):
             packet.lost = True
 
     def get_stats(self):
+        packets_lost = filter(lambda x: (True if x.lost else False), self.packets)
+        packets_serviced = map(lambda x: x.delay(), filter(lambda x: (True if x.service_done else False), self.packets))
         return (
             ("Time Elapsed (S)", self.cur_tick/self.tick_length),
             ("Average # Packets Generated (Packet/S)", len(self.packets)/(self.cur_tick/self.tick_length)),
             ("# Packets Generated", len(self.packets)),
-            ("# Packets Lost", len(filter(lambda x: (True if x.lost else False), self.packets))),
-            ("# Packets Serviced", len(filter(lambda x: (True if x.service_done else False), self.packets))),
+            ("# Packets Lost", len(packets_lost)),
+            ("# Packets Serviced", len(packets_serviced)),
             ("Service Time/Packet (S)", self.service_time/self.tick_length),
             ("Server Idle Time (S)", ceil(float(self.idle_time)/self.tick_length)),
-            ("Server Busy Time (S)", ceil(float(self.busy_time)/self.tick_length))
+            ("Server Busy Time (S)", ceil(float(self.busy_time)/self.tick_length)),
+            ("Average Packet Delay (S)", reduce(lambda x, y: (x+y)/2, packets_serviced)/self.tick_length),
+            ("Packet Loss Ratio", len(packets_lost)/len(self.packets))
         )
 
 
@@ -85,6 +91,9 @@ class Packet(object):
         self.service_started = False
         self.lost = False
         self.service_done = False
+
+    def delay(self):
+        return (self.service_finish_tick - self.generate_init_tick)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(__file__, description="A simulator for a M/D/1 and M/D/1/K network queueing model")
