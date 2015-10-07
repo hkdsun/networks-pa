@@ -1,11 +1,12 @@
 #!/usr/bin/python
-from numpy import random, mean, var
+from numpy import random
 import argparse
+from math import ceil
 
 
 class Simulator(object):
     def __init__(self, lambdaa, ticks, packet_size, service_time, buffer_length, tick_length):
-        self.generator = Generator(lambdaa)  # The packet generator will keep its state synchronize with us and generate packets only when necessary
+        self.generator = Generator(lambdaa, tick_length)  # The packet generator will keep its state synchronize with us and generate packets only when necessary
         self.max_ticks = ticks  # Maximum number of ticks that the simulation should run for
         self.cur_tick = 0  # Number of ticks elapsed since the simulation started
         self.buf = []  # Current state of the queue
@@ -13,7 +14,7 @@ class Simulator(object):
         self.packet_size = packet_size  # Number of bits in a packet. Only used for calculation of the report and the service time in ticks
         self.buffer_length = buffer_length  # The maximum number of packets that fit in the queue before we drop them
         self.tick_length = tick_length  # Number of ticks that make up a whole second in real life
-        self.service_time = self.tick_length * (self.packet_size/service_time)  # The number of ticks that each packet should spend being the first in our queue
+        self.service_time = ceil(self.tick_length * (float(self.packet_size)/service_time))  # The number of ticks that each packet should spend being the first in our queue
         self.idle_time = 0  # The number of ticks we spent not processing anything
         self.busy_time = 0  # The number of ticks we spent processing something
 
@@ -28,6 +29,7 @@ class Simulator(object):
                 if head.service_started:
                     if head.service_finish_tick == self.cur_tick:
                         self.buf.pop(0)
+                        head.service_done = True
                 else:
                     head.service_started = True
                     head.service_init_tick = self.cur_tick
@@ -45,19 +47,31 @@ class Simulator(object):
         else:
             packet.lost = True
 
+    def get_stats(self):
+        return (
+            ("Time Elapsed (S)", self.cur_tick/self.tick_length),
+            ("Average # Packets Generated (Packet/S)", len(self.packets)/(self.cur_tick/self.tick_length)),
+            ("# Packets Generated", len(self.packets)),
+            ("# Packets Lost", len(filter(lambda x: (True if x.lost else False), self.packets))),
+            ("# Packets Serviced", len(filter(lambda x: (True if x.service_done else False), self.packets))),
+            ("Service Time/Packet (S)", self.service_time/self.tick_length),
+            ("Server Idle Time (S)", ceil(float(self.idle_time)/self.tick_length)),
+            ("Server Busy Time (S)", ceil(float(self.busy_time)/self.tick_length))
+        )
+
 
 class Generator(object):
-    def __init__(self, lambdaa):
+    def __init__(self, lambdaa, multiplier):
         self.lamb = lambdaa
         self.cur_tick = 0
         self.next_tick = 0
+        self.multiplier = multiplier
 
     def next(self):
-        print self.next_tick
         p = None
         if self.next_tick == self.cur_tick:
             p = Packet(self.cur_tick)
-        num = round(random.exponential(self.lamb, None))
+        num = ceil(random.exponential(1/self.lamb, None) * self.multiplier)
         self.next_tick = self.cur_tick + num
         self.cur_tick += 1
         return p
@@ -70,25 +84,22 @@ class Packet(object):
         self.service_finish_tick = init_tick
         self.service_started = False
         self.lost = False
+        self.service_done = False
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(__file__, description="A simulator for a M/D/1 and M/D/1/K network queueing model")
-    parser.add_argument("--lambd", "-l", help="Average number of packets generated /arrived (packets per second)", type=int, required=True)
+    parser.add_argument("--lambd", "-l", help="Average number of packets generated /arrived (packets per second)", type=float, required=True)
     parser.add_argument("--ticks", "-t", help="Number of ticks that the simulator should run for", type=int, required=True)
     parser.add_argument("--packet-size", "-p", help="Length of a packet in bits", type=int, required=True)
     parser.add_argument("--service-time", "-s", help="The service time received by a packet in bits per second", type=int, required=True)
     parser.add_argument("--buffer-length", "-b", help="Buffer length (infinite by default)", type=float, default=float("inf"))
     args = parser.parse_args()
 
-    print args.lambd
-    print args.ticks
-    print args.packet_size
-    print args.service_time
-    print args.buffer_length
+    ticks_per_second = 1000
 
-    s = Simulator(args.lambd, args.ticks, args.packet_size, args.service_time, args.buffer_length, 10)
+    s = Simulator(args.lambd, args.ticks, args.packet_size, args.service_time, args.buffer_length, ticks_per_second)
 
     s.simulate()
 
-    print map(lambda x: (x.service_finish_tick - x.generate_init_tick), s.packets)
-    print map(lambda x: (x.lost), s.packets)
+    for v in s.get_stats():
+        print "{}: {}".format(v[0], v[1])
