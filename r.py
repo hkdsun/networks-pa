@@ -52,18 +52,18 @@ class Simulator(object):
     def get_stats(self):
         packets_lost = filter(lambda x: (True if x.lost else False), self.packets)
         packets_serviced = map(lambda x: x.delay(), filter(lambda x: (True if x.service_done else False), self.packets))
-        return (
+        return [
             ("Time Elapsed (S)", self.cur_tick/self.tick_length),
             ("Average # Packets Generated (Packet/S)", len(self.packets)/(self.cur_tick/self.tick_length)),
             ("# Packets Generated", len(self.packets)),
             ("# Packets Lost", len(packets_lost)),
             ("# Packets Serviced", len(packets_serviced)),
+            ("Packet Loss Probability", len(packets_lost)/len(self.packets)),
             ("Service Time/Packet (S)", self.service_time/self.tick_length),
             ("Server Idle Time (S)", ceil(float(self.idle_time)/self.tick_length)),
             ("Server Busy Time (S)", ceil(float(self.busy_time)/self.tick_length)),
-            ("Average Packet Delay (S)", reduce(lambda x, y: (x+y)/2, packets_serviced)/self.tick_length),
-            ("Packet Loss Ratio", len(packets_lost)/len(self.packets))
-        )
+            ("Average Packet Delay (S)", reduce(lambda x, y: (x+y)/2, packets_serviced)/self.tick_length)
+        ]
 
 
 class Generator(object):
@@ -102,13 +102,26 @@ if __name__ == "__main__":
     parser.add_argument("--packet-size", "-p", help="Length of a packet in bits", type=int, required=True)
     parser.add_argument("--service-time", "-s", help="The service time received by a packet in bits per second", type=int, required=True)
     parser.add_argument("--buffer-length", "-b", help="Buffer length (infinite by default)", type=float, default=float("inf"))
+    parser.add_argument("--data-points", "-m", help="Number of times the simulation should run and values be averaged out", type=int, default=int(5))
     args = parser.parse_args()
 
     ticks_per_second = 1000
 
-    s = Simulator(args.lambd, args.ticks, args.packet_size, args.service_time, args.buffer_length, ticks_per_second)
+    simulators = [Simulator(args.lambd, args.ticks, args.packet_size, args.service_time, args.buffer_length, ticks_per_second) for _ in range(args.data_points)]
 
-    s.simulate()
+    for s in range(len(simulators)):
+        print "Run {}:".format(s+1)
+        simulators[s].simulate()
 
-    for v in s.get_stats():
-        print "{}: {}".format(v[0], v[1])
+    print
+    print
+    print "Average of results"
+    print "=================="
+
+    keys = map(lambda x: x[0], simulators[0].get_stats())
+    values = zip(*map(lambda simulator: map(lambda x: x[1], simulator.get_stats()), simulators))
+    averages = map(lambda v: sum(v)/len(v), values)
+    zipped = zip(keys, averages)
+
+    for title, value in zipped:
+        print "{}: {}".format(title, value)
