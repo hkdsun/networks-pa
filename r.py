@@ -1,7 +1,7 @@
 #!/usr/bin/python
-#from numpy import random
+from numpy import random
 from math import ceil
-import random
+#import random
 import argparse
 from progressbar import ProgressBar
 
@@ -12,7 +12,7 @@ class Simulator(object):
         self.max_ticks = ticks  # Maximum number of ticks that the simulation should run for
         self.cur_tick = 0  # Number of ticks elapsed since the simulation started
         self.buf = []  # Current state of the queue
-        self.packets = []  # A global list of all packets ever generated
+        self.packets = []  # A global list of all packets ever generated (why do u refer to it as global -dj)
         self.packet_size = packet_size  # Number of bits in a packet. Only used for calculation of the report and the service time in ticks
         self.buffer_length = buffer_length  # The maximum number of packets that fit in the queue before we drop them
         self.tick_length = tick_length  # Number of ticks that make up a whole second in real life
@@ -81,9 +81,9 @@ class Generator(object):
         p = None
         if self.next_tick == self.cur_tick:
             p = Packet(self.cur_tick)
-        #num = ceil(random.exponential(1/self.lamb, None) * self.multiplier)
-        num = ceil(random.expovariate(1/self.lamb) * self.multiplier)
-        self.next_tick = self.cur_tick + num
+            num = ceil(random.exponential(1/self.lamb, None) * self.multiplier)
+            #num = ceil(random.expovariate(1/self.lamb) * self.multiplier)
+            self.next_tick = self.cur_tick + num
         self.cur_tick += 1
         return p
 
