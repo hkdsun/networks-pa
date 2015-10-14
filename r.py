@@ -66,8 +66,8 @@ class Simulator(object):
             ("# Packets Serviced", len(packets_serviced)),
             ("Packet Loss Probability", len(packets_lost)/float(len(self.packets))),
             ("Service Time/Packet (S)", self.service_time/float(self.tick_length)),
-            ("Server Idle Time (S)", ceil(float(self.idle_time)/self.tick_length)),
-            ("Server Busy Time (S)", ceil(float(self.busy_time)/self.tick_length)),
+            ("Server Idle Time (S)", (float(self.idle_time)/self.tick_length)),
+            ("Server Busy Time (S)", (float(self.busy_time)/self.tick_length)),
             ("Average Packet Delay (S)", reduce(lambda x, y: (x+y)/2, packets_serviced)/float(self.tick_length)),
             ("Average Num Packets in Queue", sum(self.buf_avg)/float(len(self.buf_avg))) ]
 
@@ -106,10 +106,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(__file__, description="A simulator for a M/D/1 and M/D/1/K network queueing model")
     parser.add_argument("--lambd", "-l", help="Average number of packets generated /arrived (packets per second)", type=float, required=True)
     parser.add_argument("--ticks", "-t", help="Number of ticks that the simulator should run for", type=int, required=True)
-    parser.add_argument("--packet-size", "-p", help="Length of a packet in bits", type=int, required=True)
-    parser.add_argument("--service-time", "-s", help="The service time received by a packet in bits per second", type=int, required=True)
-    parser.add_argument("--buffer-length", "-b", help="Buffer length (infinite by default)", type=float, default=float("inf"))
-    parser.add_argument("--data-points", "-m", help="Number of times the simulation should run and values be averaged out", type=int, default=int(5))
+    parser.add_argument("--packet-size", "-L", help="Length of a packet in bits", type=int, required=True)
+    parser.add_argument("--service-time", "-C", help="The service time received by a packet in bits per second", type=int, required=True)
+    parser.add_argument("--buffer-length", "-k", help="Buffer length (infinite by default)", type=float, default=float("inf"))
+    parser.add_argument("--data-points", "-M", help="Number of times the simulation should run and values be averaged out", type=int, default=int(5))
     args = parser.parse_args()
 
     ticks_per_second = 100000
