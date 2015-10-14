@@ -112,7 +112,7 @@ if __name__ == "__main__":
     parser.add_argument("--data-points", "-m", help="Number of times the simulation should run and values be averaged out", type=int, default=int(5))
     args = parser.parse_args()
 
-    ticks_per_second = 1000
+    ticks_per_second = 100000
 
     simulators = [Simulator(args.lambd, args.ticks, args.packet_size, args.service_time, args.buffer_length, ticks_per_second) for _ in range(args.data_points)]
 
@@ -120,8 +120,7 @@ if __name__ == "__main__":
         print "Run {}:".format(s+1)
         simulators[s].simulate()
 
-    print
-    print
+    print "=================="
     print "Average of results"
     print "=================="
 
