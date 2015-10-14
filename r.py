@@ -1,7 +1,6 @@
 #!/usr/bin/python
 from numpy import random
 from math import ceil
-#import random
 import argparse
 from progressbar import ProgressBar
 
@@ -19,7 +18,7 @@ class Simulator(object):
         self.service_time = ceil(self.tick_length * (float(self.packet_size)/service_time))  # The number of ticks that each packet should spend being the first in our queue
         self.idle_time = 0  # The number of ticks we spent not processing anything
         self.busy_time = 0  # The number of ticks we spent processing something
-        self.buf_avg = [] #to calculate avg amount of packets in buffer
+        self.buf_avg = []  # to calculate avg amount of packets in buffer
 
     def simulate(self):
         pbar = ProgressBar()
@@ -55,9 +54,6 @@ class Simulator(object):
     def get_stats(self):
         packets_lost = filter(lambda x: (True if x.lost else False), self.packets)
         packets_serviced = map(lambda x: x.delay(), filter(lambda x: (True if x.service_done else False), self.packets))
-#        print("Cur tick: %f" % (self.cur_tick))
-#        print("Tick length: %f" % (self.tick_length))
-#        print(self.cur_tick/self.tick_length)
         return [
             ("Time Elapsed (S)", self.cur_tick/float(self.tick_length)),
             ("Average # Packets Generated (Packet/S)", len(self.packets)/(self.cur_tick/float(self.tick_length))),
@@ -69,7 +65,8 @@ class Simulator(object):
             ("Server Idle Time (S)", (float(self.idle_time)/self.tick_length)),
             ("Server Busy Time (S)", (float(self.busy_time)/self.tick_length)),
             ("Average Packet Delay (S)", reduce(lambda x, y: (x+y)/2, packets_serviced)/float(self.tick_length)),
-            ("Average Num Packets in Queue", sum(self.buf_avg)/float(len(self.buf_avg))) ]
+            ("Average Num Packets in Queue", sum(self.buf_avg)/float(len(self.buf_avg)))
+        ]
 
 
 class Generator(object):
@@ -84,7 +81,6 @@ class Generator(object):
         if self.next_tick == self.cur_tick:
             p = Packet(self.cur_tick)
             num = ceil(random.exponential(1/self.lamb, None) * self.multiplier)
-            #num = ceil(random.expovariate(1/self.lamb) * self.multiplier)
             self.next_tick = self.cur_tick + num
         self.cur_tick += 1
         return p
