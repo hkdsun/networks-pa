@@ -4,34 +4,60 @@ import argparse
 from progressbar import ProgressBar
 
 class Simulator:
+
+	CDmethods = { 'n-p' : nonpersistent
+				  'p-p' : ppersistent }
+	Kmax = 10
+
 	def __init__(self,numComputers,arrivalRate,speedLAN,persistence,packetLen,runTime):
 		self.network = Network(numComputers,arrivalRate,speedLan,persistence)
 
-			self.L = packetLen
-			self.runTime = runTime
-			self.curTime = 0
+		self.L = packetLen
+		self.runTime = runTime
+		self.curTime = 0
 
 	class Network:
 		def __init__(self,N,A,W,P):
 			self.comps = [Computer() for computer in range(N)]
 			self.A = arrivalRate
 			self.W = speedLan
-			self.P = persistence
+			self.P = CDmethods[persistence]
 
 			self.busy = False
 	
 	class Computer:
-		def __init__(self,nextPacket=0):
-			#time of next packet
-			self.nextPacket = nextPacket
+		def __init__(self,sendTime=0,finishTime):
+			self.workToDo = False
+			self.waitingORsending = 0
+			self.sendTime = sendTime
+			self.finishTime = finishTime
 
-	def simulate():
+	def simulate(self):
 		while(self.curTime != self.runTime):
+			working = filter(lambda x: x.waitingORsending == 1, self.comps)
+			if (len(list(working) >= 1):
+				self.network.busy = True
+			else:
+				self.network.busy = False
+			for comp in self.network.comps:
+				self.network.P(comp)
+			self.curTime+=1
+			
+
+
+	def nonPersistent(self,comp):
+		
+		if (comp.waitingORsending == 1):
+			if (self.network.busy == "COLLISION"):
+				exponentialBackoff()
+		if (comp.sendTime != self.curTime):
 			pass
-	
-	nonPersistent():
-		if self.network.busy: 
-			randomwait()
+		elif (self.network.busy):
+ 			comp.sendTime+= randomwait()
+		else:
+			comp.
+			comp.send()
+		
 		
 
 
