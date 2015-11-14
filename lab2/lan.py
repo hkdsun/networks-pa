@@ -5,13 +5,13 @@ from progressbar import ProgressBar
 
 class Simulator:
 
-	CDmethods = { 'n-p' : nonpersistent
-				  'p-p' : ppersistent }
+	CDmethods = { 'n-p' : nonPersistent
+				  'p-p' : pPersistent }
 	Kmax = 10
 
 	def __init__(self,numComputers,arrivalRate,speedLAN,persistence,packetLen,runTime):
-		self.network = Network(numComputers,arrivalRate,speedLan,persistence)
-
+		self.network = Network(numComputers,arrivalRate,speedLan)
+		self.P = CDmethods[persistence]
 		self.L = packetLen
 		self.runTime = runTime
 		self.curTime = 0
@@ -21,52 +21,72 @@ class Simulator:
 			self.comps = [Computer() for computer in range(N)]
 			self.A = arrivalRate
 			self.W = speedLan
-			self.P = CDmethods[persistence]
 
 			self.busy = False
 	
 	class Computer:
 		def __init__(self,sendTime=0,finishTime):
-			self.workToDo = False
+			#import object from lab1 / integration
+			self.Q = []
 			self.waitingORsending = 0
 			self.sendTime = sendTime
+			self.collisions = 0
 			self.finishTime = finishTime
 
 	def simulate(self):
 		while(self.curTime != self.runTime):
-			working = filter(lambda x: x.waitingORsending == 1, self.comps)
-			if (len(list(working) >= 1):
-				self.network.busy = True
+			working = list(filter(lambda x: x.waitingORsending == 1, self.comps))
+			if (len(working)) ==  1):
+				self.network.busy = "BUSY"
+			elif (len(working) > 1):
+				self.network.busy = "MULTIPLE"
 			else:
-				self.network.busy = False
-			for comp in self.network.comps:
-				self.network.P(comp)
-			self.curTime+=1
-			
+				self.network.busy = "IDLE"
 
+			for comp in self.network.comps:
+				#packets sent to Q here, integrate lab1
+				comp.receivePackets()
+				#collision detection based on persistence
+				self.P(comp)
+			self.curTime+=1
 
 	def nonPersistent(self,comp):
-		
-		if (comp.waitingORsending == 1):
-			if (self.network.busy == "COLLISION"):
-				exponentialBackoff()
-		if (comp.sendTime != self.curTime):
-			pass
-		elif (self.network.busy):
- 			comp.sendTime+= randomwait()
-		else:
-			comp.
-			comp.send()
-		
-		
-
+		#there are packets to be sent
+		if comp.Q:
+			#in the process of sending
+			if (comp.waitingORsending == 1):
+				if (self.network.busy == "COLLISION"):
+					comp.collisions+=1
+					#need to consider how error is done given collisons, could do collis > Kmax check before
+					comp.sendTime = self.curTime + exponentialBackoff(comp.collisions,Kmax)
+					comp.waitingORsending = 0
+				else:
+					if (self.curTime = comp.finishTime):
+						comp.Q.pop(0) 
+						comp.waitingORsending = 0
+					else: pass
+			#waiting for network TO send
+			else:
+				#random wait done try to send
+				if (comp.sendTime <= self.curTime):
+					if (self.network.busy == "IDLE"):
+						comp.waitingORsending = 1
+						comp.finishTime = self.curTime + packetProcessTime()
+					else:
+						comp.sendTime = self.curTime + randomwait()
+				#not ur time yet lil packet
+				else: pass
+		#no packets in Q
+		else: pass		
 
 
 def main(args):
+	#TODO: decide what arguments needed
 	sim = Simulator(number_computers,arrival_rate,speed_lan,persistence,packet_length...)
 	sim.simulate()
 	
 
+#TODO: update arguments
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(__file__, description="A simulator for a M/D/1 and M/D/1/K network queueing model")
     parser.add_argument("--lambd", "-l", help="Average number of packets generated /arrived (packets per second)", type=float, required=True)
