@@ -2,6 +2,7 @@ from numpy import random
 from math import ceil
 import argparse
 from progressbar import ProgressBar
+from computer import Computer
 
 class Simulator:
 
@@ -22,7 +23,7 @@ class Simulator:
 			self.A = arrivalRate
 			self.W = speedLan
 
-			self.busy = False
+			self.busy = "IDLE"
 	
 	class Computer:
 		def __init__(self,sendTime=0,finishTime):
