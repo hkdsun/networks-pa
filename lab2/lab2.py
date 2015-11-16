@@ -7,6 +7,7 @@ def secToTicks(secs, tickLength):
     return float(secs) * tickLength
 
 
+
 class Network:
     def __init__(self, simulator):
         self.comps = [Computer(simulator) for _ in range(simulator.numComputers)]
@@ -19,6 +20,9 @@ class Simulator:
     Kmax = 10
     Tp = 50e-9
     propTime = 0
+
+    def propogated(timeSent,currentTime):
+        return currentTime - timeSent >= propTime
 
     def __init__(self, numComputers, arrivalRate, speedLAN, persistence, packetLen, totalTicks, tickLength, probSend=None):
         if (not probSend and persistence == 'p-p'):
@@ -43,7 +47,7 @@ class Simulator:
     def simulate(self):
         while(self.curTime != self.runTime):
             visibleWorkers = list(filter(lambda x: (x.waitingORsending == 1) and (
-                self.curTime - comp.sendTime >= propTime), self.network.comps))
+                propogated(comp.sendTime,self.curTime), self.network.comps))
             if (len(visibleWorkers) == 1):
                 self.network.busy = "BUSY"
             elif (len(visibleWorkers) > 1):
@@ -56,11 +60,11 @@ class Simulator:
                 if comp.Q:
                     self.P(comp)
             self.curTime += 1
-
+    
     def nonPersistent(self, comp):
         # in the process of sending
         if (comp.waitingORsending == 1):
-            if (self.network.busy == "MULTIPLE"):
+            if (self.network.busy == "MULTIPLE" or (self.network.busy == "BUSY" and not propogated(comp.sendTime,self.curTime)))):
                 self.collisionWork(comp)
             else:
                 if (self.curTime == comp.finishTime):
@@ -115,21 +119,21 @@ class Simulator:
     def collisionWork(self, comp):
         comp.collisions += 1
         # expbackoff pops and sets packet in case of error
-        notError = self.expBackoff(comp)
-        if notError:
-            comp.sendTime = self.curTime + notError
+        error,time =  self.expBackoff(comp)
+        if not error: 
+            comp.sendTime = self.curTime + time
         comp.waitingORsending = 0
 
     def expBackoff(self, comp):
         if comp.collisions > self.Kmax:
             comp.Q[0].lost = True
             comp.Q.pop(0)
-            return True
+            return (True,None)
         else:
             randTime = randint(0, (2**comp.collisions) - 1)
             # TODO
-            comp.sendTime = randTime * propTime
-            return False
+            time = randTime * propTime
+            return (False,time)
 
 
 def main(args):
