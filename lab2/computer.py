@@ -11,10 +11,10 @@ class Computer:
 
         #collision detection stuff
         self.waitingORsending = 0
-        self.propogated = False
         self.sendTime = 0
         self.collisions = 0
         self.finishTime = 0
+        self.pState = 1
 
     def newPacket(self):
         packet = self.generator.next()

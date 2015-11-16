@@ -50,14 +50,8 @@ class Simulator:
 	def nonPersistent(self,comp): 
             #in the process of sending
             if (comp.waitingORsending == 1):
-                    if (self.network.busy == "COLLISION"):
-                            comp.collisions+=1
-                            #expbackoff pops and sets packet in case of error
-                            notError = expBackoff(comp)
-                            if notError:
-                                comp.sendTime = self.curTime + notError
-                            comp.waitingORsending = 0
-                                 
+                    if (self.network.busy == "MULTIPLE"):
+                        collisionWork(comp)                                 
                     else:
                             if (self.curTime == comp.finishTime):
                                     comp.Q.popc(0) 
@@ -79,10 +73,35 @@ class Simulator:
                     else: pass
 
         def pPersistent(self,comp):
-            if (self.network.busy != "IDLE"):
-                return
-            else:
-                pass
+            if comp.waitingORsending == 1:
+                if self.network.busy == "MULTIPLE":
+                    collisionWork(comp)                         
+                else:
+                    if (self.curTime == comp.finishTime):
+                        comp.Q.popc(0) 
+                        comp.waitingORsending = 0
+            else:               
+                if (self.network.busy == "IDLE"):
+                    if randint(1,100)<= probSEND*100:
+                        comp.waitingORsending = 1
+                        comp.finishTime = self.curTime + secToTicks(self.L/self.network.W)
+                        comp.pState = 0
+                    else:
+                        #add wait for slot
+                        if comp.pState: 
+                            comp.sendTime+= secToTicks(self.L/self.network.W)
+                        else:
+                            #TODO: it says to do exp backoff but with no collisions wtf is that then ?????
+                            comp.sendTime+= randInt(1,1000)
+                        comp.pState ^=1
+                            
+        def collisionWork(self,comp)        
+            comp.collisions+=1
+            #expbackoff pops and sets packet in case of error
+            notError = expBackoff(comp)
+            if notError:
+                comp.sendTime = self.curTime + notError
+            comp.waitingORsending = 0      
 
         def expBackoff(self,comp):
             if comp.collisions > Kmax:
