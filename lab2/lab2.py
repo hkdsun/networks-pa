@@ -8,55 +8,24 @@ def secToTicks(secs, tickLength):
 
 
 class Network:
-    def __init__(self, simulator):
-        self.comps = [Computer(simulator) for _ in range(simulator.numComputers)]
-        self.A = simulator.arrivalRate
-        self.W = float(simulator.speedLan)
-        self.busy = "IDLE"
 
+    def __init__(self, simulator, arrivalRate, speedLan, persistence, packetLen, numComputers, probSend):
+        self.CDmethods = {'n-p': self.nonPersistent, 'p-p': self.pPersistent}
 
-class Simulator:
-    Kmax = 10
-    Tp = 50e-9
-    propTime = 0
+        self.Kmax = 10
+        self.Tp = 50e-9
+        self.simulator = simulator
 
-    def __init__(self, numComputers, arrivalRate, speedLAN, persistence, packetLen, totalTicks, tickLength, lambdaa, probSend=None):
-        if not probSend and persistence == 'p-p':
-            raise Exception("Pass in a probability if you're using P-P")
-
-        CDmethods = {'n-p': self.nonPersistent,
-                     'p-p': self.pPersistent}
-
-        self.P = CDmethods[persistence]
+        self.N = numComputers
+        self.A = arrivalRate
+        self.W = float(speedLan)
         self.L = packetLen
-        self.runTime = totalTicks
-        self.curTime = 0
-        self.lambdaa = lambdaa
-        self.tickLength = tickLength
-        self.arrivalRate = arrivalRate
-        self.speedLan = speedLAN
-        self.numComputers = numComputers
-        self.probSend = probSend
-        global propTime
-        propTime = secToTicks(self.Tp, tickLength)
-        self.network = Network(self)
+        self.P = self.CDmethods[persistence]
 
-    def simulate(self):
-        while(self.curTime != self.runTime):
-            visibleWorkers = list(filter(lambda x: (x.waitingORsending == 1) and (
-                self.curTime - comp.sendTime >= propTime), self.network.comps))
-            if (len(visibleWorkers) == 1):
-                self.network.busy = "BUSY"
-            elif (len(visibleWorkers) > 1):
-                self.network.busy = "MULTIPLE"
-            else:
-                self.network.busy = "IDLE"
-            for comp in self.network.comps:
-                comp.newPacket()
-                # collision detection based on persistence
-                if comp.Q:
-                    self.P(comp)
-            self.curTime += 1
+        self.comps = [Computer(self) for _ in range(self.N)]
+        self.busy = "IDLE"
+        self.probSend = probSend
+        self.propTime = secToTicks(self.Tp, simulator.tickLength)
 
     def nonPersistent(self, comp):
         # in the process of sending
@@ -129,8 +98,36 @@ class Simulator:
         else:
             randTime = randint(0, (2**comp.collisions) - 1)
             # TODO
-            comp.sendTime = randTime * propTime
+            comp.sendTime = randTime * self.propTime
             return False
+
+
+class Simulator:
+
+    def __init__(self, numComputers, arrivalRate, speedLan, persistence, packetLen, totalTicks, tickLength, probSend=None):
+        if (not probSend and persistence == 'p-p') or (persistence not in ('p-p', 'n-p')):
+            raise Exception("Pass in a probability if you're using P-P")
+        self.maxTime = totalTicks
+        self.curTime = 0
+        self.tickLength = tickLength
+        self.network = Network(self, arrivalRate, speedLan, persistence, packetLen, numComputers, probSend)
+
+    def simulate(self):
+        while(self.curTime != self.maxTime):
+            visibleWorkers = list(filter(lambda x: (x.waitingORsending == 1) and (
+                self.curTime - comp.sendTime >= self.network.propTime), self.network.comps))
+            if (len(visibleWorkers) == 1):
+                self.network.busy = "BUSY"
+            elif (len(visibleWorkers) > 1):
+                self.network.busy = "MULTIPLE"
+            else:
+                self.network.busy = "IDLE"
+            for comp in self.network.comps:
+                comp.newPacket()
+                # collision detection based on persistence
+                if comp.Q:
+                    self.P(comp)
+            self.curTime += 1
 
 
 def main(args):
@@ -144,13 +141,12 @@ if __name__ == "__main__":
     parser.add_argument("--speedLAN", "-W", help="bits per second", type=int, required=True)
     parser.add_argument("--probability", "-p", help="Probability if persistence scheme is used", type=float)
     parser.add_argument("--persistence", "-P", help="non-persistent: n-p or p-persistent: p-p", type=str, required=True)
-    parser.add_argument("--lambd", "-l", help="Average number of packets generated /arrived (packets per second)", type=float, required=True)
     parser.add_argument("--ticks", "-t", help="Number of ticks that the simulator should run for", type=int, required=True)
     parser.add_argument("--packet-size", "-L", help="Length of a packet in bits", type=int, required=True)
-    # TODO: how was this used before
-    parser.add_argument("--service-time", "-C", help="The service time received by a packet in bits per second", type=int, required=False)
     parser.add_argument("--tickLength", "-T", help="tick to second ratio", type=int, default=1000)
     parser.add_argument("--data-points", "-M", help="Number of times the simulation should run and values be averaged out", type=int, default=int(5))
+
     args = parser.parse_args()
-    args = (args.numComputers, args.arrivalRate, args.speedLAN, args.persistence, args.packet_size, args.ticks, args.tickLength, args.lambd, args.probability)
+    args = (args.numComputers, args.arrivalRate, args.speedLAN, args.persistence, args.packet_size, args.ticks, args.tickLength, args.probability)
+
     main(args)
