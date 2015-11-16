@@ -6,7 +6,7 @@ class Computer:
 
     def __init__(self, simulator):
         # internal packet stuff
-        self.generator = self.Generator(simulator)
+        self.generator = Generator(simulator)
         self.packets = []
         self.Q = []
 
@@ -44,7 +44,7 @@ class Generator:
     def __init__(self, simulator):
         self.lamb = simulator.lambdaa
         self.curTime = simulator.curTime
-        self.multiplier = simulator.multiplier
+        self.multiplier = 1000
         self.nextPacket = ceil(random.exponential(
             1 / self.lamb, None) * self.multiplier)
 

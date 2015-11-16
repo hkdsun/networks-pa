@@ -4,14 +4,14 @@ from computer import Computer
 
 
 def secToTicks(secs, tickLength):
-    return secs * tickLength
+    return float(secs) * tickLength
 
 
 class Network:
-    def __init__(self, simulator, N, A, W, P):
-        self.comps = [Computer(simulator) for _ in range(N)]
+    def __init__(self, simulator):
+        self.comps = [Computer(simulator) for _ in range(simulator.numComputers)]
         self.A = simulator.arrivalRate
-        self.W = simulator.speedLan
+        self.W = float(simulator.speedLan)
         self.busy = "IDLE"
 
 
@@ -22,22 +22,26 @@ class Simulator:
 
     def __init__(self, numComputers, arrivalRate, speedLAN, persistence, packetLen, totalTicks, tickLength, lambdaa):
 
-        CDmethods = {'n-p': nonPersistent,
-                     'p-p': pPersistent}
+        CDmethods = {'n-p': self.nonPersistent,
+                     'p-p': self.pPersistent}
 
-        self.network = Network(numComputers, arrivalRate, speedLan)
         self.P = CDmethods[persistence]
         self.L = packetLen
         self.runTime = totalTicks
         self.curTime = 0
-        self.tickLength
+        self.lambdaa = lambdaa
+        self.tickLength = tickLength
+        self.arrivalRate = arrivalRate
+        self.speedLan = speedLAN
+        self.numComputers = numComputers
         global propTime
         propTime = secToTicks(self.Tp, tickLength)
+        self.network = Network(self)
 
     def simulate(self):
         while(self.curTime != self.runTime):
             visibleWorkers = list(filter(lambda x: (x.waitingORsending == 1) and (
-                self.curTime - comp.sendTime >= propTime), self.comps))
+                self.curTime - comp.sendTime >= propTime), self.network.comps))
             if (len(visibleWorkers) == 1):
                 self.network.busy = "BUSY"
             elif (len(visibleWorkers) > 1):
@@ -71,13 +75,14 @@ class Simulator:
                     # TODO: convert to proper ticks, this is how long it takes
                     # package to send
                     comp.finishTime = self.curTime + \
-                        secToTicks(self.L / self.network.W)
+                        secToTicks(self.L / self.network.W, self.tickLength)
                 else:
                     # TODO: check this random time makes sense lol
                     # so it chooses a random time between 1 to time to complete
                     # an entire packet
+                    print secToTicks(self.L / self.network.W, self.tickLength)
                     comp.sendTime = self.curTime + \
-                        randint(1, secToTicks(self.L / self.network.W))
+                        randint(1, secToTicks(self.L / self.network.W, self.tickLength))
             # not ur time yet lil packet
             else:
                 pass
@@ -127,7 +132,7 @@ class Simulator:
 
 
 def main(args):
-    sim = Simulator(args)
+    sim = Simulator(*args)
     sim.simulate()
 
 if __name__ == "__main__":
