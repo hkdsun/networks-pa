@@ -4,9 +4,9 @@ from math import ceil
 
 class Computer:
 
-    def __init__(self, network):
+    def __init__(self, simulator):
         # internal packet stuff
-        self.generator = Generator(network)
+        self.generator = Generator(simulator)
         self.packets = []
         self.Q = []
 
@@ -41,12 +41,12 @@ class Packet:
 
 class Generator:
 
-    def __init__(self, network):
-        print network.__dict__
-        self.lamb = network.A
-        self.curTime = network.simulator.curTime
-        self.multiplier = network.simulator.tickLength
-        self.nextPacket = ceil(random.exponential(1 / self.lamb, None) * self.multiplier)
+    def __init__(self, simulator):
+        self.lamb = simulator.lambdaa
+        self.curTime = simulator.curTime
+        self.multiplier = 1000
+        self.nextPacket = ceil(random.exponential(
+            1 / self.lamb, None) * self.multiplier)
 
     def next(self):
         p = None
