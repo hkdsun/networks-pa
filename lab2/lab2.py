@@ -131,6 +131,24 @@ class Simulator:
             comp.sendTime = randTime * propTime
             return False
 
+    def get_stats(self):
+        packets_lost = filter(lambda x: (True if x.lost else False), self.packets)
+        packets_sent = map(lambda x: x.delay(), filter(lambda x: (True if x.service_done else False), self.packets))
+        return [
+            ("Time Elapsed (S)", self.cur_tick/float(self.tick_length)),
+            ("Average # Packets Generated (Packet/S)", len(self.packets)/(self.cur_tick/float(self.tick_length))),
+            ("# Packets Generated", len(self.packets)),
+            ("# Packets Lost", len(packets_lost)),
+            ("# Packets Serviced", len(packets_serviced)),
+            ("Packet Loss Probability", len(packets_lost)/float(len(self.packets))),
+            ("Service Time/Packet (S)", self.service_time/float(self.tick_length)),
+            ("Server Idle Time (S)", (float(self.idle_time)/self.tick_length)),
+            ("Server Busy Time (S)", (float(self.busy_time)/self.tick_length)),
+            ("Average Packet Delay (S)", reduce(lambda x, y: (x+y)/2, packets_serviced)/float(self.tick_length)),
+            ("Average Num Packets in Queue", sum(self.buf_avg)/float(len(self.buf_avg)))
+        ]
+
+
 
 def main(args):
     sim = Simulator(*args)
