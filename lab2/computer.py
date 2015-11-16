@@ -42,9 +42,9 @@ class Packet:
 class Generator:
 
     def __init__(self, simulator):
-        self.lamb = simulator.lambdaa
+        self.lamb = simulator.arrivalRate
         self.curTime = simulator.curTime
-        self.multiplier = 1000
+        self.multiplier = simulator.tickLength
         self.nextPacket = ceil(random.exponential(
             1 / self.lamb, None) * self.multiplier)
 

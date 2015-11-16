@@ -20,8 +20,8 @@ class Simulator:
     Tp = 50e-9
     propTime = 0
 
-    def __init__(self, numComputers, arrivalRate, speedLAN, persistence, packetLen, totalTicks, tickLength, lambdaa, probSend=None):
-        if not probSend and persistence == 'p-p':
+    def __init__(self, numComputers, arrivalRate, speedLAN, persistence, packetLen, totalTicks, tickLength, probSend=None):
+        if (not probSend and persistence == 'p-p'):
             raise Exception("Pass in a probability if you're using P-P")
 
         CDmethods = {'n-p': self.nonPersistent,
@@ -31,10 +31,9 @@ class Simulator:
         self.L = packetLen
         self.runTime = totalTicks
         self.curTime = 0
-        self.lambdaa = lambdaa
         self.tickLength = tickLength
-        self.arrivalRate = arrivalRate
-        self.speedLan = speedLAN
+        self.arrivalRate = float(arrivalRate)
+        self.speedLan = float(speedLAN)
         self.numComputers = numComputers
         self.probSend = probSend
         global propTime
@@ -144,13 +143,10 @@ if __name__ == "__main__":
     parser.add_argument("--speedLAN", "-W", help="bits per second", type=int, required=True)
     parser.add_argument("--probability", "-p", help="Probability if persistence scheme is used", type=float)
     parser.add_argument("--persistence", "-P", help="non-persistent: n-p or p-persistent: p-p", type=str, required=True)
-    parser.add_argument("--lambd", "-l", help="Average number of packets generated /arrived (packets per second)", type=float, required=True)
     parser.add_argument("--ticks", "-t", help="Number of ticks that the simulator should run for", type=int, required=True)
     parser.add_argument("--packet-size", "-L", help="Length of a packet in bits", type=int, required=True)
-    # TODO: how was this used before
-    parser.add_argument("--service-time", "-C", help="The service time received by a packet in bits per second", type=int, required=False)
     parser.add_argument("--tickLength", "-T", help="tick to second ratio", type=int, default=1000)
     parser.add_argument("--data-points", "-M", help="Number of times the simulation should run and values be averaged out", type=int, default=int(5))
     args = parser.parse_args()
-    args = (args.numComputers, args.arrivalRate, args.speedLAN, args.persistence, args.packet_size, args.ticks, args.tickLength, args.lambd, args.probability)
+    args = (args.numComputers, args.arrivalRate, args.speedLAN, args.persistence, args.packet_size, args.ticks, args.tickLength, args.probability)
     main(args)
