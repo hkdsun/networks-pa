@@ -20,9 +20,27 @@ class Computer:
     def newPacket(self):
         packet = self.generator.next()
         if packet:
+            self.packets.append(packet)
             self.Q.append(packet)
         else:
             pass
+
+    def finishTransmission(self):
+        self.Q[0].service_done = True
+        self.Q.pop(0)
+        self.waitingORsending = 0
+
+    def startTransmission(self, curTime, finishTime):
+        self.waitingORsending = 1
+        self.Q[0].service_init_tick = curTime
+        self.finishTime = finishTime
+        self.Q[0].service_finish_tick = finishTime
+        self.pState = 0
+
+    def postponeTransmission(self, newTime):
+        self.sendTime = newTime
+
+
 
 
 class Packet:
@@ -42,18 +60,16 @@ class Packet:
 class Generator:
 
     def __init__(self, simulator):
-        self.lamb = simulator.arrivalRate
+        self.lamb = simulator.A
         self.curTime = simulator.curTime
         self.multiplier = simulator.tickLength
-        self.nextPacket = ceil(random.exponential(
-            1 / self.lamb, None) * self.multiplier)
+        self.nextPacket = ceil(random.exponential(1 / self.lamb, None) * self.multiplier)
 
     def next(self):
         p = None
         if self.nextPacket == self.curTime:
             p = Packet(self.curTime)
-            num = ceil(random.exponential(
-                1 / self.lamb, None) * self.multiplier)
-            self.nextTime = self.curTime + num
+            num = ceil(random.exponential(1 / self.lamb, None) * self.multiplier)
+            self.nextPacket = self.curTime + num
         self.curTime += 1
         return p
