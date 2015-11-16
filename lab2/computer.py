@@ -11,6 +11,7 @@ class Computer:
 
         #collision detection stuff
         self.waitingORsending = 0
+        self.propogated = False
         self.sendTime = 0
         self.collisions = 0
         self.finishTime = 0
@@ -44,6 +45,7 @@ class Computer:
             self.service_finish_tick = init_tick
             self.service_started = False
             self.service_done = False
+            self.lost = False
 
         def delay(self):
             return (self.service_finish_tick - self.generate_init_tick)
