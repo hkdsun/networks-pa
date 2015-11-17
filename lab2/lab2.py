@@ -82,10 +82,10 @@ class Simulator:
                     self.transComps.remove(comp)
         else: # Need to transmit still
             if (comp.sendTime <= self.curTime): # Time to send
-                comp.startService(self.curTime)
                 if not self.mediumBusy(comp):
                     finishTime = self.curTime + secToTicks(self.L / self.W, self.tickLength) + self.maxPropDelay
                     comp.startTransmission(self.curTime, finishTime)
+                    comp.startService(self.curTime)
                     self.transComps.add(comp)
                 else: # BUSY
                     comp.waits+=1
@@ -105,11 +105,11 @@ class Simulator:
                     self.transComps.remove(comp)
         else:
             if (comp.sendTime <= self.curTime):
-                comp.startService(self.curTime)
                 if not self.mediumBusy(comp):
                     if randint(1, 100) <= self.probSend * 100: # Send with probability P
                         finishTime = self.curTime + secToTicks(self.L / self.W, self.tickLength) + self.maxPropDelay
                         comp.startTransmission(self.curTime, finishTime)
+                        comp.startService(self.curTime)
                         self.transComps.add(comp)
                     else: # Don't send
                         if comp.pState:
@@ -145,6 +145,7 @@ class Simulator:
     def get_stats(self):
         packets_all = [packet for comp in self.comps for packet in comp.packets]
         packets_service = map(lambda x: x.service_time(), filter(lambda x: (True if x.service_done else False), packets_all))
+        print packets_service
         packets_delay = map(lambda x: x.packet_delay(), filter(lambda x: (True if x.service_done else False), packets_all))
         return [
             ("number of all packets generated", len(packets_all)),
