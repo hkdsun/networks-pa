@@ -60,9 +60,12 @@ class Packet:
         self.service_done = False
         self.lost = False
 
-    def delay(self):
-        return (self.service_finish_tick - self.service_init_tick)
+    def packet_delay(self):
+        return (self.service_finish_tick - self.generate_init_tick)
 
+    def service_time(self):
+        print (self.service_finish_tick - self.service_init_tick)
+        return (self.service_finish_tick - self.service_init_tick)
 
 class Generator:
 

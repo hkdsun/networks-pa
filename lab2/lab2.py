@@ -5,6 +5,9 @@ from progressbar import ProgressBar
 
 
 def secToTicks(secs, tickLength):
+    n = float(secs) * tickLength
+    if n < 1:
+        raise Exception("tickLength too low")
     return float(secs) * tickLength
 
 
@@ -14,7 +17,6 @@ def ticksToSecs(ticks, tickLength):
 
 class Simulator:
     Kmax = 10
-    Tp = 50e-9
     propConstant = 0
 
     def propagated(self, timeSent,currentTime,propTime):
@@ -36,8 +38,11 @@ class Simulator:
         self.tickLength = float(tickLength)
         self.numComputers = numComputers
         self.probSend = probSend
+        self.numCollisions = 0
         global propConstant
-        propConstant = secToTicks(self.Tp, tickLength)
+        propConstant = secToTicks(50e-6, tickLength)
+        self.maxPropDelay = propConstant * (self.numComputers-1)
+        self.Tp = secToTicks(512.0/self.W, self.tickLength)
         self.comps = [Computer(self,i) for i in range(self.numComputers)]
         self.state = "IDLE"
         self.transComps = set()
@@ -69,6 +74,7 @@ class Simulator:
     def nonPersistent(self, comp):
         if (comp.waitingORsending == 1): # Currently transmitting
             if self.mediumBusy(comp):
+                self.numCollisions += 1
                 self.handleCollision(comp)
             else:
                 if (self.curTime == comp.finishTime):
@@ -78,7 +84,7 @@ class Simulator:
             if (comp.sendTime <= self.curTime): # Time to send
                 comp.startService(self.curTime)
                 if not self.mediumBusy(comp):
-                    finishTime = self.curTime + secToTicks(self.L / self.W, self.tickLength)
+                    finishTime = self.curTime + secToTicks(self.L / self.W, self.tickLength) + self.maxPropDelay
                     comp.startTransmission(self.curTime, finishTime)
                     self.transComps.add(comp)
                 else: # BUSY
@@ -91,6 +97,7 @@ class Simulator:
     def pPersistent(self, comp):
         if comp.waitingORsending == 1:
             if self.mediumBusy(comp):
+                self.numCollisions += 1
                 self.handleCollision(comp)
             else:
                 if (self.curTime == comp.finishTime):
@@ -98,9 +105,10 @@ class Simulator:
                     self.transComps.remove(comp)
         else:
             if (comp.sendTime <= self.curTime):
+                comp.startService(self.curTime)
                 if not self.mediumBusy(comp):
                     if randint(1, 100) <= self.probSend * 100: # Send with probability P
-                        finishTime = self.curTime + secToTicks(self.L / self.W, self.tickLength)
+                        finishTime = self.curTime + secToTicks(self.L / self.W, self.tickLength) + self.maxPropDelay
                         comp.startTransmission(self.curTime, finishTime)
                         self.transComps.add(comp)
                     else: # Don't send
@@ -111,7 +119,7 @@ class Simulator:
                             comp.waits+=1
                             error, time = self.expBackoff(comp,comp.waits)
                             if not error:
-                                comp.postponeTransmission(sendTime)
+                                comp.postponeTransmission(self.curTime + time)
                         comp.pState ^= 1
 
     def handleCollision(self, comp):
@@ -131,41 +139,41 @@ class Simulator:
             return (True,None)
         else:
             randTime = randint(0, (2**i) - 1)
-            time = randTime * propConstant
+            time = randTime * self.Tp
             return (False,time)
-
-    def _get_stats(self):
-        packets_lost = filter(lambda x: (True if x.lost else False), self.packets)
-        packets_sent = map(lambda x: x.delay(), filter(lambda x: (True if x.service_done else False), self.packets))
-        return [
-            ("Time Elapsed (S)", self.cur_tick/float(self.tick_length)),
-            ("Average # Packets Generated (Packet/S)", len(self.packets)/(self.cur_tick/float(self.tick_length))),
-            ("# Packets Generated", len(self.packets)),
-            ("# Packets Lost", len(packets_lost)),
-            ("# Packets Serviced", len(packets_serviced)),
-            ("Packet Loss Probability", len(packets_lost)/float(len(self.packets))),
-            ("Service Time/Packet (S)", self.service_time/float(self.tick_length)),
-            ("Server Idle Time (S)", (float(self.idle_time)/self.tick_length)),
-            ("Server Busy Time (S)", (float(self.busy_time)/self.tick_length)),
-            ("Average Packet Delay (S)", reduce(lambda x, y: (x+y)/2, packets_serviced)/float(self.tick_length)),
-            ("Average Num Packets in Queue", sum(self.buf_avg)/float(len(self.buf_avg)))
-        ]
 
     def get_stats(self):
         packets_all = [packet for comp in self.comps for packet in comp.packets]
-        packets_sent = map(lambda x: x.delay(), filter(lambda x: (True if x.service_done else False), packets_all))
-        print "number of all packets generated", len(packets_all)
-        print "number of all packets sent successfully", len(packets_sent)
-        print "ratio of packets sent", float(len(packets_sent))/len(packets_all)
-        print "average throughput of network (Mbps)", (self.L/1e6)/ticksToSecs(reduce(lambda x, y: (x+y)/2, packets_sent), self.tickLength)
+        packets_service = map(lambda x: x.service_time(), filter(lambda x: (True if x.service_done else False), packets_all))
+        packets_delay = map(lambda x: x.packet_delay(), filter(lambda x: (True if x.service_done else False), packets_all))
+        return [
+            ("number of all packets generated", len(packets_all)),
+            ("number of all packets sent successfully", len(packets_delay)),
+            ("ratio of packets sent", float(len(packets_delay))/len(packets_all)),
+            ("average throughput of network (Mbps)", (self.L/1e6)/ticksToSecs(reduce(lambda x, y: (x+y)/2, packets_service), self.tickLength)),
+            ("average packet delay (mS)", ticksToSecs(reduce(lambda x, y: (x+y)/2, packets_delay), self.tickLength)*1000),
+            ("average number of collisions", self.numCollisions)
+        ]
 
 
 
-def main(args):
-    sim = Simulator(*args)
-    sim.simulate()
-    print args
-    sim.get_stats()
+def main(args, data_points):
+    simulators = [Simulator(*args) for _ in range(data_points)]
+
+    for s in range(len(simulators)):
+        simulators[s].simulate()
+
+    print "==================================="
+    print "Average of results for N={}, A={}".format(args[0], args[1])
+    print "==================================="
+
+    keys = map(lambda x: x[0], simulators[0].get_stats())
+    values = zip(*map(lambda simulator: map(lambda x: x[1], simulator.get_stats()), simulators))
+    averages = map(lambda v: sum(v)/len(v), values)
+    zipped = zip(keys, averages)
+
+    for title, value in zipped:
+        print "{}: {}".format(title, value)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(__file__, description="A simulator for a M/D/1 and M/D/1/K network queueing model")
@@ -176,8 +184,8 @@ if __name__ == "__main__":
     parser.add_argument("--persistence", "-P", help="non-persistent: n-p or p-persistent: p-p", type=str, required=True)
     parser.add_argument("--ticks", "-t", help="Number of ticks that the simulator should run for", type=int, required=True)
     parser.add_argument("--packet-size", "-L", help="Length of a packet in bits", type=int, required=True)
-    parser.add_argument("--tickLength", "-T", help="tick to second ratio", type=int, default=500)
+    parser.add_argument("--tickLength", "-T", help="tick to second ratio", type=int, default=1e5)
     parser.add_argument("--data-points", "-M", help="Number of times the simulation should run and values be averaged out", type=int, default=int(5))
     args = parser.parse_args()
-    args = (args.numComputers, args.arrivalRate, args.speedLAN, args.persistence, args.packet_size, args.ticks, args.tickLength, args.probability)
-    main(args)
+    args_list = (args.numComputers, args.arrivalRate, args.speedLAN, args.persistence, args.packet_size, args.ticks, args.tickLength, args.probability)
+    main(args_list, args.data_points)
