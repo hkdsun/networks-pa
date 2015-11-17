@@ -69,6 +69,7 @@ class Simulator:
                     pass
         else: # Need to transmit still
             if (comp.sendTime <= self.curTime): # Time to send
+                comp.startService(self.curTime)
                 if (self.state == "IDLE"):
                     finishTime = self.curTime + secToTicks(self.L / self.W, self.tickLength)
                     comp.startTransmission(self.curTime, finishTime)
@@ -100,7 +101,6 @@ class Simulator:
                         comp.pState ^= 1
 
     def handleCollision(self, comp):
-        print "collision detected"
         comp.collisions += 1
         # expbackoff pops and sets packet in case of error
         error,time =  self.expBackoff(comp)
@@ -139,17 +139,17 @@ class Simulator:
     def get_stats(self):
         packets_all = [packet for comp in self.comps for packet in comp.packets]
         packets_sent = map(lambda x: x.delay(), filter(lambda x: (True if x.service_done else False), packets_all))
-        print packets_sent
         print "number of all packets generated", len(packets_all)
         print "number of all packets sent successfully", len(packets_sent)
         print "ratio of packets sent", float(len(packets_sent))/len(packets_all)
-        print "average throughput of network Mbps", (self.L/1e6)/ticksToSecs(reduce(lambda x, y: (x+y)/2, packets_sent), self.tickLength)
+        print "average throughput of network (Mbps)", (self.L/1e6)/ticksToSecs(reduce(lambda x, y: (x+y)/2, packets_sent), self.tickLength)
 
 
 
 def main(args):
     sim = Simulator(*args)
     sim.simulate()
+    print args
     sim.get_stats()
 
 if __name__ == "__main__":

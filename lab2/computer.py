@@ -32,7 +32,6 @@ class Computer:
 
     def startTransmission(self, curTime, finishTime):
         self.waitingORsending = 1
-        self.Q[0].service_init_tick = curTime
         self.finishTime = finishTime
         self.Q[0].service_finish_tick = finishTime
         self.pState = 0
@@ -40,6 +39,10 @@ class Computer:
     def postponeTransmission(self, newTime):
         self.sendTime = newTime
 
+    def startService(self, curTime):
+        if not self.Q[0].service_started:
+            self.Q[0].service_started = True
+            self.Q[0].service_init_tick = curTime
 
 
 
@@ -54,7 +57,7 @@ class Packet:
         self.lost = False
 
     def delay(self):
-        return (self.service_finish_tick - self.generate_init_tick)
+        return (self.service_finish_tick - self.service_init_tick)
 
 
 class Generator:
