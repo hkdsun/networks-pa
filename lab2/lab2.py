@@ -15,9 +15,9 @@ def ticksToSecs(ticks, tickLength):
 class Simulator:
     Kmax = 10
     Tp = 50e-9
-    propTime = 0
+    propConstant = 0
 
-    def propagated(self, timeSent,currentTime):
+    def propagated(self, timeSent,currentTime,propTime):
         return (currentTime - timeSent) >= propTime
 
     def __init__(self, numComputers, arrivalRate, speedLAN, persistence, packetLen, totalTicks, tickLength, probSend=None):
@@ -36,21 +36,21 @@ class Simulator:
         self.tickLength = float(tickLength)
         self.numComputers = numComputers
         self.probSend = probSend
-        global propTime
-        propTime = secToTicks(self.Tp, tickLength)
-        self.comps = [Computer(self) for _ in range(self.numComputers)]
+        global propConstant
+        propConstant = secToTicks(self.Tp, tickLength)
+        self.comps = [Computer(self,i) for i in range(self.numComputers)]
         self.state = "IDLE"
+        self.transComps = set()
+        self.propTimes = {}
+        for i in range(self.numComputers):
+            for j in range(i+1,self.numComputers):
+                propTime = self.calcPropTime(i,j)
+                self.propTimes[i,j] = propTime
+                self.propTimes[j,i] = propTime
 
     def simulate(self):
         pbar = ProgressBar()
         for t in pbar(range(1, self.runTime+1)):
-            visibleWorkers = list(filter(lambda x: (x.waitingORsending == 1 and self.propagated(x.sendTime,self.curTime)), self.comps))
-            if (len(visibleWorkers) == 1):
-                self.state = "BUSY"
-            elif (len(visibleWorkers) > 1):
-                self.state = "MULTIPLE"
-            else:
-                self.state = "IDLE"
             for comp in self.comps:
                 comp.newPacket()
                 # collision detection based on persistence
@@ -58,65 +58,80 @@ class Simulator:
                     self.P(comp)
             self.curTime += 1
 
+    def calcPropTime(self,positionA,positionB):
+        propTime = abs(positionA - positionB)*propConstant
+        return propTime
+
+    def mediumBusy(self,comp):
+        visibleWorkers = list(filter(lambda x: x!=comp and (self.propagated(x.sendTime,self.curTime,self.propTimes[comp.position,x.position])), self.transComps))
+        return len(visibleWorkers) >= 1
+
     def nonPersistent(self, comp):
         if (comp.waitingORsending == 1): # Currently transmitting
-            if (self.state == "MULTIPLE" or (self.state == "BUSY" and not self.propagated(comp.sendTime,self.curTime))):
+            if self.mediumBusy(comp):
                 self.handleCollision(comp)
             else:
                 if (self.curTime == comp.finishTime):
                     comp.finishTransmission()
-                else:
-                    pass
+                    self.transComps.remove(comp)
         else: # Need to transmit still
             if (comp.sendTime <= self.curTime): # Time to send
                 comp.startService(self.curTime)
-                if (self.state == "IDLE"):
+                if not self.mediumBusy(comp):
                     finishTime = self.curTime + secToTicks(self.L / self.W, self.tickLength)
                     comp.startTransmission(self.curTime, finishTime)
+                    self.transComps.add(comp)
                 else: # BUSY
-                    sendTime = self.curTime + randint(1, secToTicks(self.L / self.W, self.tickLength))
-                    comp.postponeTransmission(sendTime)
+                    comp.waits+=1
+                    error, time = self.expBackoff(comp,comp.waits)
+                    if not error:
+                        sendTime = self.curTime + time
+                        comp.postponeTransmission(sendTime)
 
     def pPersistent(self, comp):
         if comp.waitingORsending == 1:
-            if self.state == "MULTIPLE":
+            if self.mediumBusy(comp):
                 self.handleCollision(comp)
             else:
                 if (self.curTime == comp.finishTime):
                     comp.finishTransmission()
+                    self.transComps.remove(comp)
         else:
             if (comp.sendTime <= self.curTime):
-                if (self.state == "IDLE"):
+                if not self.mediumBusy(comp):
                     if randint(1, 100) <= self.probSend * 100: # Send with probability P
                         finishTime = self.curTime + secToTicks(self.L / self.W, self.tickLength)
                         comp.startTransmission(self.curTime, finishTime)
+                        self.transComps.add(comp)
                     else: # Don't send
                         if comp.pState:
                             sendTime = self.curTime + secToTicks(self.L / self.W, self.tickLength)
                             comp.postponeTransmission(sendTime)
                         else:
-                            # TODO: sendTime needs to be exponential backoff
-                            sendTime = 0
-                            comp.postponeTransmission(sendTime)
+                            comp.waits+=1
+                            error, time = self.expBackoff(comp,comp.waits)
+                            if not error:
+                                comp.postponeTransmission(sendTime)
                         comp.pState ^= 1
 
     def handleCollision(self, comp):
         comp.collisions += 1
+        #no longer transmitting
+        self.transComps.remove(comp)
         # expbackoff pops and sets packet in case of error
-        error,time =  self.expBackoff(comp)
+        error,time =  self.expBackoff(comp,comp.collisions)
         if not error:
             comp.sendTime = self.curTime + time
         comp.waitingORsending = 0
 
-    def expBackoff(self, comp):
-        if comp.collisions > self.Kmax:
+    def expBackoff(self, comp,i):
+        if i > self.Kmax:
             comp.Q[0].lost = True
             comp.Q.pop(0)
             return (True,None)
         else:
-            randTime = randint(0, (2**comp.collisions) - 1)
-            # TODO
-            time = randTime * propTime
+            randTime = randint(0, (2**i) - 1)
+            time = randTime * propConstant
             return (False,time)
 
     def _get_stats(self):

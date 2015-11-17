@@ -4,7 +4,7 @@ from math import ceil
 
 class Computer:
 
-    def __init__(self, simulator):
+    def __init__(self, simulator, pos):
         # internal packet stuff
         self.generator = Generator(simulator)
         self.packets = []
@@ -14,8 +14,10 @@ class Computer:
         self.waitingORsending = 0
         self.sendTime = 0
         self.collisions = 0
+        self.waits = 0
         self.finishTime = 0
         self.pState = 1
+        self.position = pos
 
     def newPacket(self):
         packet = self.generator.next()
@@ -29,12 +31,14 @@ class Computer:
         self.Q[0].service_done = True
         self.Q.pop(0)
         self.waitingORsending = 0
+        self.collisions = 0
 
     def startTransmission(self, curTime, finishTime):
         self.waitingORsending = 1
         self.finishTime = finishTime
         self.Q[0].service_finish_tick = finishTime
         self.pState = 0
+        self.waits = 0
 
     def postponeTransmission(self, newTime):
         self.sendTime = newTime
