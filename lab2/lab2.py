@@ -40,7 +40,7 @@ class Simulator:
         self.probSend = probSend
         self.numCollisions = 0
         global propConstant
-        propConstant = secToTicks(50e-6, tickLength)
+        propConstant = secToTicks(50e-3, tickLength)
         self.maxPropDelay = propConstant * (self.numComputers - 1)
         self.Tp = secToTicks(512.0 / self.W, self.tickLength)
         self.comps = [Computer(self, i) for i in range(self.numComputers)]
@@ -329,27 +329,23 @@ def question5(args, data_points):
                 print "{}: {}".format(title, value)
             throughputs.append(zipped[3][1])
             delays.append(zipped[4][1])
-        plt.close()
-        plt.title('Delays for probability (P) = {}'.format(p))
-        plt.plot(As, delays, 'ro')
-        plt.axis([min(As)-4, max(As)+4, min(delays)-10, max(delays)+10])
-        plt.xlabel('Rate of Arrival (A)')
-        plt.ylabel('Average Delay of the LAN (milliseconds) [averaged over {} simulations'.format(data_points))
-        plt.savefig('q5_delay_p{}.png'.format(p))
-        plt.close()
-        plt.title('Throughputs for probability (P) = {}'.format(p))
-        plt.plot(As, throughputs, 'ro')
-        plt.axis([min(As)-2, max(As)+2, min(throughputs)-0.1, max(throughputs)+0.1])
-        plt.xlabel('Rate of Arrival (A)')
-        plt.ylabel('Throughput of the LAN (Mbps) [averaged over {} simulations'.format(data_points))
-        plt.savefig('q5_throughput_p{}.png'.format(p))
+        # delays
+        global min_y
+        global max_y
+        min_y = min(min_y, min(delays))
+        max_y = max(max_y, max(delays))
+        plt.plot(As, delays, 'o', linestyle='-', label="Probability (P) = {}".format(p))
+        plt.axis([min(As)-4, max(As)+4, min_y-100, max_y+100])
+        # throughputs
+        plt.plot(As, throughputs, 'o', linestyle='-', label="Probability (P) = {}".format(p))
+        plt.axis([min(As)-2, max(As)+2, 0, 1])
 
 
 def main(args, data_points):
     # print "+++++++++++++++++++++"
     # print "     QUESTION 1      "
     # print "+++++++++++++++++++++"
-    question1(args, data_points)
+    # question1(args, data_points)
     # print "+++++++++++++++++++++"
     # print "     QUESTION 2      "
     # print "+++++++++++++++++++++"
@@ -365,7 +361,22 @@ def main(args, data_points):
     # print "+++++++++++++++++++++"
     # print "     QUESTION 5      "
     # print "+++++++++++++++++++++"
-    # question5(args, data_points)
+    global min_y
+    global max_y
+    min_y = float("inf")
+    max_y = float("-inf")
+    plt.close()
+    question5(args, data_points)
+    # delay
+    plt.title('Packet Delay vs. Probability (P)')
+    plt.xlabel('Rate of Arrival (A)')
+    plt.ylabel('Average Packet Delay of the LAN (milliseconds)')
+    plt.savefig('q5_delay')
+    # throughput
+    # plt.title('Throughput vs. probability (P)')
+    # plt.xlabel('Rate of Arrival (A)')
+    # plt.ylabel('Throughput of the LAN (Mbps)')
+    # plt.savefig('q5_throughput')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(__file__, description="A simulator for a M/D/1 and M/D/1/K network queueing model")
@@ -374,7 +385,7 @@ if __name__ == "__main__":
     parser.add_argument("--persistence", "-P", help="non-persistent: n-p or p-persistent: p-p", type=str, required=True)
     parser.add_argument("--ticks", "-t", help="Number of ticks that the simulator should run for", type=int, required=True)
     parser.add_argument("--packet-size", "-L", help="Length of a packet in bits", type=int, required=True)
-    parser.add_argument("--tickLength", "-T", help="tick to second ratio", type=int, default=1e5)
+    parser.add_argument("--tickLength", "-T", help="tick to second ratio", type=int, default=1e4)
     parser.add_argument("--data-points", "-M", help="Number of times the simulation should run and values be averaged out", type=int, default=int(5))
     args = parser.parse_args()
     args_list = [args.speedLAN, args.persistence, args.packet_size, args.ticks, args.tickLength, args.probability]
